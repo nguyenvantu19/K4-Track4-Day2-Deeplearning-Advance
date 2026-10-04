@@ -81,15 +81,13 @@ class TestStarterFiles(unittest.TestCase):
         for f in sorted(STARTER.glob("*.py")) + [ROOT / "eval.py"]:
             py_compile.compile(str(f), doraise=True)
 
-    def test_todo_stubs_are_still_stubs(self):
-        """Mỗi module khung phải còn nhiều hàm chưa cài đặt (sinh viên tự làm)."""
-        expected_min = {"dataset.py": 6, "model.py": 5, "losses.py": 6, "train.py": 10,
-                        "inference.py": 8, "benchmark.py": 3}
-        for name, minimum in expected_min.items():
+    def test_starter_modules_are_implemented(self):
+        """The completed starter has no remaining NotImplementedError stubs."""
+        for name in ("dataset.py", "model.py", "losses.py", "train.py", "inference.py", "benchmark.py"):
             tree = ast.parse((STARTER / name).read_text(encoding="utf-8"))
             n = sum(1 for node in ast.walk(tree) if isinstance(node, ast.Raise)
                     and isinstance(node.exc, ast.Call) and getattr(node.exc.func, "id", "") == "NotImplementedError")
-            self.assertGreaterEqual(n, minimum, f"{name}: chỉ còn {n} stub, kỳ vọng >= {minimum}")
+            self.assertEqual(n, 0, f"{name}: còn {n} stub")
 
     def test_starter_has_no_complete_helper_modules(self):
         """Mọi file trong starter/ đều là pseudo-code: không còn module hoàn chỉnh kiểu records.py."""
@@ -97,11 +95,11 @@ class TestStarterFiles(unittest.TestCase):
         for f in STARTER.glob("*.py"):
             self.assertNotIn("import records", f.read_text(encoding="utf-8"), f.name)
 
-    def test_cli_helpers_in_train_are_stubs(self):
-        with self.assertRaises(NotImplementedError):
-            train.parse_overrides(["seed=1"])
-        with self.assertRaises(NotImplementedError):
-            train.main()
+    def test_cli_helpers_parse_typed_overrides(self):
+        self.assertEqual(train.parse_overrides(["seed=1", "amp=false", "ema_decay=0.99"]),
+                         {"seed": 1, "amp": False, "ema_decay": 0.99})
+        with self.assertRaises(ValueError):
+            train.parse_overrides(["unknown=1"])
 
     def test_notebook_is_valid_and_clean(self):
         nb = json.loads((STARTER / "lab_day2.ipynb").read_text(encoding="utf-8"))
